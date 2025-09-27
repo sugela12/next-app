@@ -6,13 +6,17 @@ interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  images?: string[]; // Base64 encoded images
 }
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [dragOver, setDragOver] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -22,18 +26,58 @@ export default function Chat() {
     scrollToBottom();
   }, [messages]);
 
+  // Handle image upload
+  const handleImageUpload = (files: FileList | null) => {
+    if (!files) return;
+
+    Array.from(files).forEach((file) => {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const result = e.target?.result as string;
+          setUploadedImages(prev => [...prev, result]);
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  };
+
+  // Remove image
+  const removeImage = (index: number) => {
+    setUploadedImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Handle drag and drop
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    handleImageUpload(e.dataTransfer.files);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && uploadedImages.length === 0) || isLoading) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
       content: input,
+      images: uploadedImages.length > 0 ? uploadedImages : undefined,
     };
 
     setMessages(prev => [...prev, userMessage]);
     setInput('');
+    setUploadedImages([]);
     setIsLoading(true);
 
     try {
@@ -98,7 +142,7 @@ export default function Chat() {
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3">
+      <div className="bg-white border-b border-gray-200 px-4 py-3 shadow-md">
         <h1 className="text-lg font-semibold text-gray-800">Ai对话工具</h1>
       </div>
 
@@ -129,10 +173,34 @@ export default function Chat() {
               <div
                 className={`max-w-[80%] px-4 py-3 rounded-2xl ${
                   message.role === 'user'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white border border-gray-200 text-gray-800'
+                    ? 'bg-blue-500 text-white shadow-lg'
+                    : 'bg-white border border-gray-200 text-gray-800 shadow-md'
                 }`}
               >
+                {/* Display images if any */}
+                {message.images && message.images.length > 0 && (
+                  <div className="mb-3 space-y-2">
+                    {message.images.map((image, index) => (
+                      <div className="relative">
+                        <img
+                          key={index}
+                          src={image}
+                          alt={`Uploaded image ${index + 1}`}
+                          className="max-w-full h-auto rounded-lg"
+                          style={{ maxHeight: '200px' }}
+                        />
+                        <button
+                          className="absolute top-1 right-1 text-white bg-red-500 p-1 rounded-full hover:bg-red-600"
+                          onClick={() => removeImage(index)}
+                        >
+                          ❌
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Display text content */}
                 <div className="whitespace-pre-wrap break-words">
                   {message.content}
                 </div>
@@ -167,7 +235,9 @@ export default function Chat() {
           <div ref={messagesEndRef} />
         </div>
       </div>
-      <div className="bg-white border-t border-gray-200 px-4 py-4">
+
+      {/* Input Area */}
+      <div className="bg-white border-t border-gray-200 px-4 py-4 shadow-md">
         <div className="max-w-3xl mx-auto">
           <form onSubmit={handleSubmit} className="flex gap-2">
             <div className="flex-1 relative">
@@ -175,7 +245,7 @@ export default function Chat() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 disabled={isLoading}
-                className="w-full text-black pl-4 pr-12 border border-gray-300 rounded-full resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full text-black pl-4 pr-12 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ minHeight: '48px', maxHeight: '120px' }}
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement;
