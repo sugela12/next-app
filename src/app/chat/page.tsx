@@ -14,9 +14,7 @@ export default function Chat() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
-  const [dragOver, setDragOver] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -26,42 +24,9 @@ export default function Chat() {
     scrollToBottom();
   }, [messages]);
 
-  // Handle image upload
-  const handleImageUpload = (files: FileList | null) => {
-    if (!files) return;
-
-    Array.from(files).forEach((file) => {
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const result = e.target?.result as string;
-          setUploadedImages(prev => [...prev, result]);
-        };
-        reader.readAsDataURL(file);
-      }
-    });
-  };
-
   // Remove image
   const removeImage = (index: number) => {
     setUploadedImages(prev => prev.filter((_, i) => i !== index));
-  };
-
-  // Handle drag and drop
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    handleImageUpload(e.dataTransfer.files);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -177,28 +142,6 @@ export default function Chat() {
                     : 'bg-white border border-gray-200 text-gray-800 shadow-md'
                 }`}
               >
-                {/* Display images if any */}
-                {message.images && message.images.length > 0 && (
-                  <div className="mb-3 space-y-2">
-                    {message.images.map((image, index) => (
-                      <div className="relative">
-                        <img
-                          key={index}
-                          src={image}
-                          alt={`Uploaded image ${index + 1}`}
-                          className="max-w-full h-auto rounded-lg"
-                          style={{ maxHeight: '200px' }}
-                        />
-                        <button
-                          className="absolute top-1 right-1 text-white bg-red-500 p-1 rounded-full hover:bg-red-600"
-                          onClick={() => removeImage(index)}
-                        >
-                          ❌
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
                 
                 {/* Display text content */}
                 <div className="whitespace-pre-wrap break-words">
